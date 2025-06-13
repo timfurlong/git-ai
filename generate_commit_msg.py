@@ -73,7 +73,7 @@ def smart_diff(repo_path=".", max_lines=100):
     else:
         return {}
 
-def get_previous_commit_messages(repo_path=".", num_commits=10):
+def get_previous_commit_messages(repo_path=".", num_commits=3):
     """
     Get the previous commit messages from the repository.
     
@@ -163,4 +163,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     file_diffs = smart_diff()
-    print(interactive_commit_msg(file_diffs, args.prompt, not args.no_previous))
+
+    final_commit_msg = interactive_commit_msg(file_diffs, args.prompt, not args.no_previous)
+    print("\nFinal commit message:")
+    print("-" * 100)
+    print(final_commit_msg)
+    print("-" * 100)

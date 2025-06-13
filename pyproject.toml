@@ -3,13 +3,10 @@ name = "git-ai"
 version = "0.1.0"
 description = "A Python project using uv"
 requires-python = ">=3.11"
-dependencies = [
-    "gitpython>=3.1.44",
-    "litellm>=1.72.4",
-]
+dependencies = ["gitpython>=3.1.44", "litellm>=1.72.4"]
 
 [project.optional-dependencies]
-dev = ["ruff==0.3.0", "pytest==8.0.0"]
+dev = ["ruff==0.3.0", "pytest==8.0.0", "pytest-mock==3.14.0"]
 
 [build-system]
 requires = ["hatchling"]

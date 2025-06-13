@@ -4,7 +4,6 @@ from git import Repo
 from generate_commit_msg import smart_diff, generate_commit_msg, get_previous_commit_messages, interactive_commit_msg
 import tempfile
 import shutil
-from unittest.mock import patch, MagicMock
 
 @pytest.fixture
 def temp_repo():
@@ -123,14 +122,11 @@ def test_invalid_repo_path():
     with pytest.raises(Exception):
         smart_diff("/nonexistent/path")
 
-def test_generate_commit_msg():
+def test_generate_commit_msg(mocker):
     """Test the commit message generation with mocked API response."""
-    # Sample file diffs
     file_diffs = {
         "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
     }
-    
-    # Mock the litellm API response
     mock_response = type('Response', (), {
         'choices': [type('Choice', (), {
             'message': type('Message', (), {
@@ -138,16 +134,12 @@ def test_generate_commit_msg():
             })
         })]
     })
-    
-    with patch('litellm.completion', return_value=mock_response):
-        commit_msg = generate_commit_msg(file_diffs)
-        assert commit_msg == "Update test.txt with modified content"
+    mocker.patch('litellm.completion', return_value=mock_response)
+    commit_msg = generate_commit_msg(file_diffs)
+    assert commit_msg == "Update test.txt with modified content"
 
-def test_generate_commit_msg_empty_diffs():
-    """Test commit message generation with empty diffs."""
+def test_generate_commit_msg_empty_diffs(mocker):
     file_diffs = {}
-    
-    # Mock the litellm API response
     mock_response = type('Response', (), {
         'choices': [type('Choice', (), {
             'message': type('Message', (), {
@@ -155,19 +147,15 @@ def test_generate_commit_msg_empty_diffs():
             })
         })]
     })
-    
-    with patch('litellm.completion', return_value=mock_response):
-        commit_msg = generate_commit_msg(file_diffs)
-        assert commit_msg == "No changes to commit"
+    mocker.patch('litellm.completion', return_value=mock_response)
+    commit_msg = generate_commit_msg(file_diffs)
+    assert commit_msg == "No changes to commit"
 
-def test_generate_commit_msg_multiple_files():
-    """Test commit message generation with multiple file changes."""
+def test_generate_commit_msg_multiple_files(mocker):
     file_diffs = {
         "test1.txt": "diff --git a/test1.txt b/test1.txt\n@@ -1 +1 @@\n-old content\n+new content",
         "test2.txt": "diff --git a/test2.txt b/test2.txt\n@@ -1 +1 @@\n-removed\n+added"
     }
-    
-    # Mock the litellm API response
     mock_response = type('Response', (), {
         'choices': [type('Choice', (), {
             'message': type('Message', (), {
@@ -175,20 +163,15 @@ def test_generate_commit_msg_multiple_files():
             })
         })]
     })
-    
-    with patch('litellm.completion', return_value=mock_response):
-        commit_msg = generate_commit_msg(file_diffs)
-        assert commit_msg == "Update multiple files: test1.txt and test2.txt"
+    mocker.patch('litellm.completion', return_value=mock_response)
+    commit_msg = generate_commit_msg(file_diffs)
+    assert commit_msg == "Update multiple files: test1.txt and test2.txt"
 
-def test_generate_commit_msg_with_additional_prompt():
-    """Test commit message generation with additional prompt context."""
+def test_generate_commit_msg_with_additional_prompt(mocker):
     file_diffs = {
         "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
     }
-    
     additional_prompt = "This change is part of a larger refactoring effort."
-    
-    # Mock the litellm API response
     mock_response = type('Response', (), {
         'choices': [type('Choice', (), {
             'message': type('Message', (), {
@@ -196,10 +179,9 @@ def test_generate_commit_msg_with_additional_prompt():
             })
         })]
     })
-    
-    with patch('litellm.completion', return_value=mock_response):
-        commit_msg = generate_commit_msg(file_diffs, additional_prompt)
-        assert commit_msg == "Update test.txt with modified content as part of refactoring"
+    mocker.patch('litellm.completion', return_value=mock_response)
+    commit_msg = generate_commit_msg(file_diffs, additional_prompt)
+    assert commit_msg == "Update test.txt with modified content as part of refactoring"
 
 def test_get_previous_commit_messages(temp_repo):
     """Test retrieving previous commit messages."""
@@ -218,16 +200,11 @@ def test_get_previous_commit_messages(temp_repo):
     assert all(f"Test commit {i}" in messages for i in range(3))
     assert "initial commit" in messages
 
-def test_generate_commit_msg_with_previous_commits():
-    """Test commit message generation with previous commit messages included."""
+def test_generate_commit_msg_with_previous_commits(mocker):
     file_diffs = {
         "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
     }
-    
-    # Mock the previous commit messages
     mock_commits = ["feat: add new feature", "fix: resolve bug", "docs: update README"]
-    
-    # Mock the litellm API response
     mock_response = type('Response', (), {
         'choices': [type('Choice', (), {
             'message': type('Message', (), {
@@ -235,14 +212,12 @@ def test_generate_commit_msg_with_previous_commits():
             })
         })]
     })
-    
-    with patch('generate_commit_msg.get_previous_commit_messages', return_value=mock_commits), \
-         patch('litellm.completion', return_value=mock_response):
-        commit_msg = generate_commit_msg(file_diffs, include_previous_commits=True)
-        assert commit_msg == "feat: update test.txt with modified content"
+    mocker.patch('generate_commit_msg.get_previous_commit_messages', return_value=mock_commits)
+    mocker.patch('litellm.completion', return_value=mock_response)
+    commit_msg = generate_commit_msg(file_diffs, include_previous_commits=True)
+    assert commit_msg == "feat: update test.txt with modified content"
 
-def test_generate_commit_msg_includes_previous_commits_by_default():
-    """Test that previous commit messages are included by default."""
+def test_generate_commit_msg_includes_previous_commits_by_default(mocker):
     file_diffs = {
         "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
     }
@@ -254,15 +229,13 @@ def test_generate_commit_msg_includes_previous_commits_by_default():
             })
         })]
     })
-    with patch('generate_commit_msg.get_previous_commit_messages', return_value=mock_commits) as prev_patch, \
-         patch('litellm.completion', return_value=mock_response) as llm_patch:
-        commit_msg = generate_commit_msg(file_diffs)
-        # Check that get_previous_commit_messages was called (default behavior)
-        prev_patch.assert_called()
-        assert commit_msg == "feat: update test.txt with modified content"
+    prev_patch = mocker.patch('generate_commit_msg.get_previous_commit_messages', return_value=mock_commits)
+    mocker.patch('litellm.completion', return_value=mock_response)
+    commit_msg = generate_commit_msg(file_diffs)
+    prev_patch.assert_called()
+    assert commit_msg == "feat: update test.txt with modified content"
 
-def test_generate_commit_msg_excludes_previous_commits_when_disabled():
-    """Test that previous commit messages are NOT included when include_previous_commits is False."""
+def test_generate_commit_msg_excludes_previous_commits_when_disabled(mocker):
     file_diffs = {
         "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
     }
@@ -273,20 +246,16 @@ def test_generate_commit_msg_excludes_previous_commits_when_disabled():
             })
         })]
     })
-    with patch('generate_commit_msg.get_previous_commit_messages') as prev_patch, \
-         patch('litellm.completion', return_value=mock_response) as llm_patch:
-        commit_msg = generate_commit_msg(file_diffs, include_previous_commits=False)
-        # Check that get_previous_commit_messages was NOT called
-        prev_patch.assert_not_called()
-        assert commit_msg == "update test.txt with modified content (no style)"
+    prev_patch = mocker.patch('generate_commit_msg.get_previous_commit_messages')
+    mocker.patch('litellm.completion', return_value=mock_response)
+    commit_msg = generate_commit_msg(file_diffs, include_previous_commits=False)
+    prev_patch.assert_not_called()
+    assert commit_msg == "update test.txt with modified content (no style)"
 
-def test_interactive_commit_msg_accept_first():
-    """Test interactive commit message generation where user accepts the first message."""
+def test_interactive_commit_msg_accept_first(mocker):
     file_diffs = {
         "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
     }
-    
-    # Mock the initial commit message
     initial_response = type('Response', (), {
         'choices': [type('Choice', (), {
             'message': type('Message', (), {
@@ -294,20 +263,15 @@ def test_interactive_commit_msg_accept_first():
             })
         })]
     })
-    
-    # Mock user input to accept the message (empty string)
-    with patch('builtins.input', return_value=""), \
-         patch('litellm.completion', return_value=initial_response):
-        result = interactive_commit_msg(file_diffs)
-        assert result == "feat: update test.txt"
+    mocker.patch('builtins.input', return_value="")
+    mocker.patch('litellm.completion', return_value=initial_response)
+    result = interactive_commit_msg(file_diffs)
+    assert result == "feat: update test.txt"
 
-def test_interactive_commit_msg_with_feedback():
-    """Test interactive commit message generation with user feedback."""
+def test_interactive_commit_msg_with_feedback(mocker):
     file_diffs = {
         "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
     }
-    
-    # Mock the initial commit message
     initial_response = type('Response', (), {
         'choices': [type('Choice', (), {
             'message': type('Message', (), {
@@ -315,8 +279,6 @@ def test_interactive_commit_msg_with_feedback():
             })
         })]
     })
-    
-    # Mock the revised commit message
     revised_response = type('Response', (), {
         'choices': [type('Choice', (), {
             'message': type('Message', (), {
@@ -324,17 +286,12 @@ def test_interactive_commit_msg_with_feedback():
             })
         })]
     })
-    
-    # Mock user input to provide feedback and then accept
-    input_mock = MagicMock(side_effect=["make it more descriptive", ""])
-    
-    # Create a mock that returns different responses for each call
-    completion_mock = MagicMock()
+    input_mock = mocker.MagicMock(side_effect=["make it more descriptive", ""])
+    completion_mock = mocker.MagicMock()
     completion_mock.side_effect = [initial_response, revised_response]
-    
-    with patch('builtins.input', input_mock), \
-         patch('litellm.completion', completion_mock):
-        result = interactive_commit_msg(file_diffs)
-        assert result == "feat: update test.txt with more descriptive message"
-        assert input_mock.call_count == 2  # Called twice: once for feedback, once for acceptance
-        assert completion_mock.call_count == 2  # Called twice: once for initial, once for revision 
+    mocker.patch('builtins.input', input_mock)
+    mocker.patch('litellm.completion', completion_mock)
+    result = interactive_commit_msg(file_diffs)
+    assert result == "feat: update test.txt with more descriptive message"
+    assert input_mock.call_count == 2
+    assert completion_mock.call_count == 2 
