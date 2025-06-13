@@ -1,7 +1,7 @@
 import os
 import pytest
 from git import Repo
-from generate_commit_msg import smart_diff, generate_commit_msg, get_previous_commit_messages, interactive_commit_msg
+from git_ai.generate_commit_msg import smart_diff, generate_commit_msg, get_previous_commit_messages, interactive_commit_msg
 import tempfile
 import shutil
 
@@ -195,7 +195,7 @@ def test_get_previous_commit_messages(temp_repo):
         repo.index.add([test_file])
         repo.index.commit(f"Test commit {i}")
     
-    messages = get_previous_commit_messages(temp_repo)
+    messages = get_previous_commit_messages(temp_repo, num_commits=4)
     assert len(messages) == 4  # 3 test commits + 1 initial commit
     assert all(f"Test commit {i}" in messages for i in range(3))
     assert "initial commit" in messages
@@ -212,7 +212,7 @@ def test_generate_commit_msg_with_previous_commits(mocker):
             })
         })]
     })
-    mocker.patch('generate_commit_msg.get_previous_commit_messages', return_value=mock_commits)
+    mocker.patch('git_ai.generate_commit_msg.get_previous_commit_messages', return_value=mock_commits)
     mocker.patch('litellm.completion', return_value=mock_response)
     commit_msg = generate_commit_msg(file_diffs, include_previous_commits=True)
     assert commit_msg == "feat: update test.txt with modified content"
@@ -229,7 +229,7 @@ def test_generate_commit_msg_includes_previous_commits_by_default(mocker):
             })
         })]
     })
-    prev_patch = mocker.patch('generate_commit_msg.get_previous_commit_messages', return_value=mock_commits)
+    prev_patch = mocker.patch('git_ai.generate_commit_msg.get_previous_commit_messages', return_value=mock_commits)
     mocker.patch('litellm.completion', return_value=mock_response)
     commit_msg = generate_commit_msg(file_diffs)
     prev_patch.assert_called()
@@ -246,7 +246,7 @@ def test_generate_commit_msg_excludes_previous_commits_when_disabled(mocker):
             })
         })]
     })
-    prev_patch = mocker.patch('generate_commit_msg.get_previous_commit_messages')
+    prev_patch = mocker.patch('git_ai.generate_commit_msg.get_previous_commit_messages')
     mocker.patch('litellm.completion', return_value=mock_response)
     commit_msg = generate_commit_msg(file_diffs, include_previous_commits=False)
     prev_patch.assert_not_called()

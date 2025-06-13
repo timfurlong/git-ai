@@ -73,4 +73,4 @@ def test_generate_pr_description_bedrock(mocker, mock_pr, mock_repo, mock_github
     assert len(result.files) == 2
     assert "test.py" in result.files
     assert "README.md" in result.files
-    assert result.description  # Should have a non-empty description 
+    assert result.description  # Should have a non-empty description
