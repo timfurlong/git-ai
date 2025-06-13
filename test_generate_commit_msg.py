@@ -178,4 +178,25 @@ def test_generate_commit_msg_multiple_files():
     
     with patch('litellm.completion', return_value=mock_response):
         commit_msg = generate_commit_msg(file_diffs)
-        assert commit_msg == "Update multiple files: test1.txt and test2.txt" 
+        assert commit_msg == "Update multiple files: test1.txt and test2.txt"
+
+def test_generate_commit_msg_with_additional_prompt():
+    """Test commit message generation with additional prompt context."""
+    file_diffs = {
+        "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
+    }
+    
+    additional_prompt = "This change is part of a larger refactoring effort."
+    
+    # Mock the litellm API response
+    mock_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "Update test.txt with modified content as part of refactoring"
+            })
+        })]
+    })
+    
+    with patch('litellm.completion', return_value=mock_response):
+        commit_msg = generate_commit_msg(file_diffs, additional_prompt)
+        assert commit_msg == "Update test.txt with modified content as part of refactoring" 

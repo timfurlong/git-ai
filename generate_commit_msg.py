@@ -8,6 +8,7 @@ import litellm
 import sys
 import subprocess
 import re
+import argparse
 
 model = os.getenv("LITELLM_MODEL", "openai/gpt-4o")
 
@@ -72,9 +73,13 @@ def smart_diff(repo_path=".", max_lines=100):
     else:
         return {}
 
-def generate_commit_msg(file_diffs):
+def generate_commit_msg(file_diffs, additional_prompt=None):
     """
     Generate a commit message for the current changes.
+    
+    Args:
+        file_diffs (dict): Dictionary of file diffs
+        additional_prompt (str, optional): Additional sentences to add to the prompt
     """
     # Format the file diffs in a way that is easier for the model to understand
     formatted_diffs = ""
@@ -84,14 +89,23 @@ def generate_commit_msg(file_diffs):
 
     prompt = f"""
     You are a helpful assistant that generates a commit message for the current changes.
+    Only provide the commit message, no other text.
+
     The changes are described in the following diffs:
+    
     {formatted_diffs}
     """
+    
+    if additional_prompt:
+        prompt += f"\nAdditional context: {additional_prompt}"
+        
     response = litellm.completion(model=model, messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content
 
 if __name__ == "__main__":
-    import pprint
+    parser = argparse.ArgumentParser(description="Generate a commit message for the current changes.")
+    parser.add_argument("--prompt", "-p", type=str, help="Additional sentences to add to the prompt")
+    args = parser.parse_args()
+    
     file_diffs = smart_diff()
-    # pprint.pprint(file_diffs)
-    print(generate_commit_msg(file_diffs))
+    print(generate_commit_msg(file_diffs, args.prompt))
