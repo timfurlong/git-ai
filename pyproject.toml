@@ -1,8 +1,8 @@
 [project]
 name = "git-ai"
 version = "0.1.0"
-description = "AI-powered GitHub PR description generator"
-requires-python = ">=3.8"
+description = "Miscellaneous scripts that use AI to do useful stuff with git history"
+requires-python = ">=3.11"
 dependencies = [
     "instructor[bedrock]",
     "python-dotenv>=1.0.0",
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff==0.3.0", "pytest==8.0.0", "pytest-mock==3.14.0"]
+dev = ["ruff", "pytest", "pytest-mock", "python-semantic-release>=9.21.0"]
 
 [build-system]
 requires = ["hatchling"]
@@ -28,9 +28,12 @@ markers = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py311"
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
