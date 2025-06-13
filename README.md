@@ -9,14 +9,13 @@ An AI-powered Git assistant that helps automate two key aspects of the developme
 - **Commit Message Generation**: Automatically generates descriptive and conventional commit messages based on your code changes
 - **PR Description Generation**: Creates comprehensive pull request descriptions using AI
 - Integrates with GitHub's API
-- Uses AWS Bedrock for AI capabilities
+- Uses LiteLLM for flexible AI model selection (defaults to GPT-4)
 - Configurable and extensible
 
 ## Prerequisites
 
 - Python 3.8 or higher
 - GitHub account and access token
-- AWS account with Bedrock access (for AI capabilities)
 - uv package manager
 
 ## Installation
@@ -46,10 +45,9 @@ uv pip install -e ".[dev]"  # Install with development dependencies
 Create a `.env` file in the project root with the following variables:
 ```env
 GITHUB_TOKEN=your_github_token
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-AWS_REGION=your_aws_region
 ```
+
+For AI model configuration, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers) for available models and their required environment variables. By default, the project uses GPT-4, but you can configure it to use any model supported by LiteLLM.
 
 ## Usage
 
