@@ -4,16 +4,21 @@ import os
 import re
 from typing import Dict, List
 
-import litellm
+import instructor
 from dotenv import load_dotenv
 from github import Auth, Github
 from pydantic import BaseModel
 
 # Use the .env file located in the same directory as this script
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=True)
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=True)
 
-# Get the model from environment variable, defaulting to gpt-4o
-model = os.getenv("LITELLM_MODEL", "openai/gpt-4o")
+# Check that the GH_ACCESS_TOKEN is set
+if "GH_ACCESS_TOKEN" not in os.environ:
+    raise ValueError("GH_ACCESS_TOKEN is not set")
+
+# Create a Github instance
+auth = Auth.Token(os.environ["GH_ACCESS_TOKEN"])
+g = Github(auth=auth)
 
 class PRDescription(BaseModel):
     title: str
@@ -28,13 +33,6 @@ def generate_pr_description(pr_url: str, additional_text: str = None) -> PRDescr
     org, repo, pr_number = match.groups()
     pr_number = int(pr_number)
 
-    # Check that the GH_ACCESS_TOKEN is set
-    if "GH_ACCESS_TOKEN" not in os.environ:
-        raise ValueError("GH_ACCESS_TOKEN is not set")
-    # Create a Github instance
-    auth = Auth.Token(os.environ["GH_ACCESS_TOKEN"])
-    g = Github(auth=auth)
-
     # Get the PR
     repo = g.get_repo(f"{org}/{repo}")
     pr = repo.get_pull(pr_number)
@@ -47,8 +45,7 @@ def generate_pr_description(pr_url: str, additional_text: str = None) -> PRDescr
 
     # Create the prompt
     prompt = f"""
-    Given the following information for a GitHub Pull Request, write a description for the
-    PR. The description should be clear, concise, and highlight the key changes made.
+    Given the following information for a GitHub Pull Request, write a description for the PR.
 
     Pull Request title: "{pr_title}"
 
@@ -56,39 +53,32 @@ def generate_pr_description(pr_url: str, additional_text: str = None) -> PRDescr
     ```json
     {json.dumps(pr_contents, indent=2)}
     ```
-
-    Please provide your response in the following JSON format:
-    {{
-        "title": "The PR title",
-        "files": {{
-            "filename1": "file contents",
-            "filename2": "file contents"
-        }},
-        "description": "Your detailed PR description"
-    }}
     """
 
     if additional_text:
         prompt += additional_text
 
-    # Generate the description using LiteLLM
-    response = litellm.completion(
-        model=model,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    
-    try:
-        # Parse the response into a PRDescription object
-        response_content = json.loads(response.choices[0].message.content)
-        return PRDescription(**response_content)
-    except json.JSONDecodeError as e:
-        # If JSON parsing fails, try to extract the description from the text
-        content = response.choices[0].message.content
-        return PRDescription(
-            title=pr_title,
-            files=pr_contents,
-            description=content
+    # Initialize instructor client
+    client = instructor.patch(
+        instructor.from_anthropic(
+            api_key=os.environ.get("ANTHROPIC_API_KEY"),
+            model="claude-3-sonnet-20240229"
         )
+    )
+
+    # Generate the description using instructor
+    response = client.chat.completions.create(
+        model="claude-3-sonnet-20240229",
+        response_model=PRDescription,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+    return response
 
 def get_args():
     parser = argparse.ArgumentParser(

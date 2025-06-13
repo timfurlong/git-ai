@@ -22,6 +22,9 @@ build-backend = "hatchling.build"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v"
+markers = [
+    "integration: marks tests that require external services (deselect with '-m \"not integration\"')",
+]
 
 [tool.ruff]
 line-length = 88
