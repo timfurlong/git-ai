@@ -1,10 +1,10 @@
 import os
 import pytest
 from git import Repo
-from generate_commit_msg import smart_diff, generate_commit_msg, get_previous_commit_messages
+from generate_commit_msg import smart_diff, generate_commit_msg, get_previous_commit_messages, interactive_commit_msg
 import tempfile
 import shutil
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 @pytest.fixture
 def temp_repo():
@@ -278,4 +278,63 @@ def test_generate_commit_msg_excludes_previous_commits_when_disabled():
         commit_msg = generate_commit_msg(file_diffs, include_previous_commits=False)
         # Check that get_previous_commit_messages was NOT called
         prev_patch.assert_not_called()
-        assert commit_msg == "update test.txt with modified content (no style)" 
+        assert commit_msg == "update test.txt with modified content (no style)"
+
+def test_interactive_commit_msg_accept_first():
+    """Test interactive commit message generation where user accepts the first message."""
+    file_diffs = {
+        "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
+    }
+    
+    # Mock the initial commit message
+    initial_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "feat: update test.txt"
+            })
+        })]
+    })
+    
+    # Mock user input to accept the message (empty string)
+    with patch('builtins.input', return_value=""), \
+         patch('litellm.completion', return_value=initial_response):
+        result = interactive_commit_msg(file_diffs)
+        assert result == "feat: update test.txt"
+
+def test_interactive_commit_msg_with_feedback():
+    """Test interactive commit message generation with user feedback."""
+    file_diffs = {
+        "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
+    }
+    
+    # Mock the initial commit message
+    initial_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "feat: update test.txt"
+            })
+        })]
+    })
+    
+    # Mock the revised commit message
+    revised_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "feat: update test.txt with more descriptive message"
+            })
+        })]
+    })
+    
+    # Mock user input to provide feedback and then accept
+    input_mock = MagicMock(side_effect=["make it more descriptive", ""])
+    
+    # Create a mock that returns different responses for each call
+    completion_mock = MagicMock()
+    completion_mock.side_effect = [initial_response, revised_response]
+    
+    with patch('builtins.input', input_mock), \
+         patch('litellm.completion', completion_mock):
+        result = interactive_commit_msg(file_diffs)
+        assert result == "feat: update test.txt with more descriptive message"
+        assert input_mock.call_count == 2  # Called twice: once for feedback, once for acceptance
+        assert completion_mock.call_count == 2  # Called twice: once for initial, once for revision 

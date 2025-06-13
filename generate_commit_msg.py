@@ -88,7 +88,7 @@ def get_previous_commit_messages(repo_path=".", num_commits=10):
     commits = list(repo.iter_commits(max_count=num_commits))
     return [commit.message.strip() for commit in commits]
 
-def generate_commit_msg(file_diffs, additional_prompt=None, include_previous_commits=True):
+def generate_commit_msg(file_diffs, additional_prompt=None, include_previous_commits=True, feedback=None):
     """
     Generate a commit message for the current changes.
     
@@ -96,6 +96,7 @@ def generate_commit_msg(file_diffs, additional_prompt=None, include_previous_com
         file_diffs (dict): Dictionary of file diffs
         additional_prompt (str, optional): Additional sentences to add to the prompt
         include_previous_commits (bool): Whether to include previous commit messages in the prompt
+        feedback (str, optional): User feedback to incorporate into the commit message
     """
     # Format the file diffs in a way that is easier for the model to understand
     formatted_diffs = ""
@@ -121,8 +122,38 @@ def generate_commit_msg(file_diffs, additional_prompt=None, include_previous_com
     if additional_prompt:
         prompt += f"\nAdditional context: {additional_prompt}"
         
+    if feedback:
+        prompt += f"\n\nUser feedback on the previous commit message: {feedback}\nPlease revise the commit message based on this feedback."
+        
     response = litellm.completion(model=model, messages=[{"role": "user", "content": prompt}])
     return response.choices[0].message.content
+
+def interactive_commit_msg(file_diffs, additional_prompt=None, include_previous_commits=True):
+    """
+    Interactively generate a commit message with user feedback.
+    
+    Args:
+        file_diffs (dict): Dictionary of file diffs
+        additional_prompt (str, optional): Additional sentences to add to the prompt
+        include_previous_commits (bool): Whether to include previous commit messages in the prompt
+    
+    Returns:
+        str: The final accepted commit message
+    """
+    feedback = None
+    while True:
+        commit_msg = generate_commit_msg(
+            file_diffs,
+            additional_prompt=additional_prompt,
+            include_previous_commits=include_previous_commits,
+            feedback=feedback
+        )
+        print("\nGenerated commit message:")
+        print(commit_msg)
+        user_feedback = input("\nPress Enter to accept, or type feedback to revise: ").strip()
+        if not user_feedback:
+            return commit_msg
+        feedback = user_feedback
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a commit message for the current changes.")
@@ -132,4 +163,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     file_diffs = smart_diff()
-    print(generate_commit_msg(file_diffs, args.prompt, not args.no_previous))
+    print(interactive_commit_msg(file_diffs, args.prompt, not args.no_previous))
