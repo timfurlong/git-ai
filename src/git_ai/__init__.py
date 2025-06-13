@@ -1,5 +1,3 @@
-"""
-Git AI package.
-"""
+from .generate_pr_description import generate_pr_description, PRDescription
 
-__version__ = "0.1.0"
+__all__ = ["generate_pr_description", "PRDescription"] 
