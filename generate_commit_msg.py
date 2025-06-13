@@ -72,6 +72,26 @@ def smart_diff(repo_path=".", max_lines=100):
     else:
         return {}
 
+def generate_commit_msg(file_diffs):
+    """
+    Generate a commit message for the current changes.
+    """
+    # Format the file diffs in a way that is easier for the model to understand
+    formatted_diffs = ""
+    for filename, diff in file_diffs.items():
+        formatted_diffs += f"File: {filename}\n"
+        formatted_diffs += f"```\n{diff}\n```\n"
+
+    prompt = f"""
+    You are a helpful assistant that generates a commit message for the current changes.
+    The changes are described in the following diffs:
+    {formatted_diffs}
+    """
+    response = litellm.completion(model=model, messages=[{"role": "user", "content": prompt}])
+    return response.choices[0].message.content
+
 if __name__ == "__main__":
     import pprint
-    pprint.pprint(smart_diff())
+    file_diffs = smart_diff()
+    # pprint.pprint(file_diffs)
+    print(generate_commit_msg(file_diffs))

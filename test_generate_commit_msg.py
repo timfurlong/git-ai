@@ -1,9 +1,10 @@
 import os
 import pytest
 from git import Repo
-from generate_commit_msg import smart_diff
+from generate_commit_msg import smart_diff, generate_commit_msg
 import tempfile
 import shutil
+from unittest.mock import patch
 
 @pytest.fixture
 def temp_repo():
@@ -120,4 +121,61 @@ def test_no_changes(temp_repo):
 def test_invalid_repo_path():
     """Test with an invalid repository path."""
     with pytest.raises(Exception):
-        smart_diff("/nonexistent/path") 
+        smart_diff("/nonexistent/path")
+
+def test_generate_commit_msg():
+    """Test the commit message generation with mocked API response."""
+    # Sample file diffs
+    file_diffs = {
+        "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
+    }
+    
+    # Mock the litellm API response
+    mock_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "Update test.txt with modified content"
+            })
+        })]
+    })
+    
+    with patch('litellm.completion', return_value=mock_response):
+        commit_msg = generate_commit_msg(file_diffs)
+        assert commit_msg == "Update test.txt with modified content"
+
+def test_generate_commit_msg_empty_diffs():
+    """Test commit message generation with empty diffs."""
+    file_diffs = {}
+    
+    # Mock the litellm API response
+    mock_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "No changes to commit"
+            })
+        })]
+    })
+    
+    with patch('litellm.completion', return_value=mock_response):
+        commit_msg = generate_commit_msg(file_diffs)
+        assert commit_msg == "No changes to commit"
+
+def test_generate_commit_msg_multiple_files():
+    """Test commit message generation with multiple file changes."""
+    file_diffs = {
+        "test1.txt": "diff --git a/test1.txt b/test1.txt\n@@ -1 +1 @@\n-old content\n+new content",
+        "test2.txt": "diff --git a/test2.txt b/test2.txt\n@@ -1 +1 @@\n-removed\n+added"
+    }
+    
+    # Mock the litellm API response
+    mock_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "Update multiple files: test1.txt and test2.txt"
+            })
+        })]
+    })
+    
+    with patch('litellm.completion', return_value=mock_response):
+        commit_msg = generate_commit_msg(file_diffs)
+        assert commit_msg == "Update multiple files: test1.txt and test2.txt" 
