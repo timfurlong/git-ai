@@ -73,13 +73,29 @@ def smart_diff(repo_path=".", max_lines=100):
     else:
         return {}
 
-def generate_commit_msg(file_diffs, additional_prompt=None):
+def get_previous_commit_messages(repo_path=".", num_commits=10):
+    """
+    Get the previous commit messages from the repository.
+    
+    Args:
+        repo_path (str): Path to the git repository
+        num_commits (int): Number of previous commits to retrieve
+        
+    Returns:
+        list: List of previous commit messages
+    """
+    repo = Repo(repo_path)
+    commits = list(repo.iter_commits(max_count=num_commits))
+    return [commit.message.strip() for commit in commits]
+
+def generate_commit_msg(file_diffs, additional_prompt=None, include_previous_commits=True):
     """
     Generate a commit message for the current changes.
     
     Args:
         file_diffs (dict): Dictionary of file diffs
         additional_prompt (str, optional): Additional sentences to add to the prompt
+        include_previous_commits (bool): Whether to include previous commit messages in the prompt
     """
     # Format the file diffs in a way that is easier for the model to understand
     formatted_diffs = ""
@@ -92,9 +108,15 @@ def generate_commit_msg(file_diffs, additional_prompt=None):
     Only provide the commit message, no other text.
 
     The changes are described in the following diffs:
-    
     {formatted_diffs}
     """
+    
+    if include_previous_commits:
+        previous_commits = get_previous_commit_messages()
+        if previous_commits:
+            prompt += "\nHere are some previous commit messages to follow the same style:\n"
+            for i, msg in enumerate(previous_commits, 1):
+                prompt += f"{i}. {msg}\n"
     
     if additional_prompt:
         prompt += f"\nAdditional context: {additional_prompt}"
@@ -105,7 +127,9 @@ def generate_commit_msg(file_diffs, additional_prompt=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a commit message for the current changes.")
     parser.add_argument("--prompt", "-p", type=str, help="Additional sentences to add to the prompt")
+    parser.add_argument("--no-previous", action="store_true", 
+                      help="Do NOT include previous commit messages in the prompt (default: include them)")
     args = parser.parse_args()
     
     file_diffs = smart_diff()
-    print(generate_commit_msg(file_diffs, args.prompt))
+    print(generate_commit_msg(file_diffs, args.prompt, not args.no_previous))

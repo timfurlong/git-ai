@@ -1,7 +1,7 @@
 import os
 import pytest
 from git import Repo
-from generate_commit_msg import smart_diff, generate_commit_msg
+from generate_commit_msg import smart_diff, generate_commit_msg, get_previous_commit_messages
 import tempfile
 import shutil
 from unittest.mock import patch
@@ -199,4 +199,83 @@ def test_generate_commit_msg_with_additional_prompt():
     
     with patch('litellm.completion', return_value=mock_response):
         commit_msg = generate_commit_msg(file_diffs, additional_prompt)
-        assert commit_msg == "Update test.txt with modified content as part of refactoring" 
+        assert commit_msg == "Update test.txt with modified content as part of refactoring"
+
+def test_get_previous_commit_messages(temp_repo):
+    """Test retrieving previous commit messages."""
+    repo = Repo(temp_repo)
+    
+    # Create and commit some test files
+    for i in range(3):
+        test_file = os.path.join(temp_repo, f"test{i}.txt")
+        with open(test_file, "w") as f:
+            f.write(f"content {i}")
+        repo.index.add([test_file])
+        repo.index.commit(f"Test commit {i}")
+    
+    messages = get_previous_commit_messages(temp_repo)
+    assert len(messages) == 4  # 3 test commits + 1 initial commit
+    assert all(f"Test commit {i}" in messages for i in range(3))
+    assert "initial commit" in messages
+
+def test_generate_commit_msg_with_previous_commits():
+    """Test commit message generation with previous commit messages included."""
+    file_diffs = {
+        "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
+    }
+    
+    # Mock the previous commit messages
+    mock_commits = ["feat: add new feature", "fix: resolve bug", "docs: update README"]
+    
+    # Mock the litellm API response
+    mock_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "feat: update test.txt with modified content"
+            })
+        })]
+    })
+    
+    with patch('generate_commit_msg.get_previous_commit_messages', return_value=mock_commits), \
+         patch('litellm.completion', return_value=mock_response):
+        commit_msg = generate_commit_msg(file_diffs, include_previous_commits=True)
+        assert commit_msg == "feat: update test.txt with modified content"
+
+def test_generate_commit_msg_includes_previous_commits_by_default():
+    """Test that previous commit messages are included by default."""
+    file_diffs = {
+        "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
+    }
+    mock_commits = ["feat: add new feature", "fix: resolve bug"]
+    mock_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "feat: update test.txt with modified content"
+            })
+        })]
+    })
+    with patch('generate_commit_msg.get_previous_commit_messages', return_value=mock_commits) as prev_patch, \
+         patch('litellm.completion', return_value=mock_response) as llm_patch:
+        commit_msg = generate_commit_msg(file_diffs)
+        # Check that get_previous_commit_messages was called (default behavior)
+        prev_patch.assert_called()
+        assert commit_msg == "feat: update test.txt with modified content"
+
+def test_generate_commit_msg_excludes_previous_commits_when_disabled():
+    """Test that previous commit messages are NOT included when include_previous_commits is False."""
+    file_diffs = {
+        "test.txt": "diff --git a/test.txt b/test.txt\n@@ -1 +1 @@\n-initial content\n+modified content"
+    }
+    mock_response = type('Response', (), {
+        'choices': [type('Choice', (), {
+            'message': type('Message', (), {
+                'content': "update test.txt with modified content (no style)"
+            })
+        })]
+    })
+    with patch('generate_commit_msg.get_previous_commit_messages') as prev_patch, \
+         patch('litellm.completion', return_value=mock_response) as llm_patch:
+        commit_msg = generate_commit_msg(file_diffs, include_previous_commits=False)
+        # Check that get_previous_commit_messages was NOT called
+        prev_patch.assert_not_called()
+        assert commit_msg == "update test.txt with modified content (no style)" 
